@@ -19,6 +19,8 @@ export interface Database {
           carbs: number;
           fats: number;
           image_url: string | null;
+          emoji: string | null;
+          is_ai: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +33,8 @@ export interface Database {
           carbs?: number;
           fats?: number;
           image_url?: string | null;
+          emoji?: string | null;
+          is_ai?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -43,6 +47,8 @@ export interface Database {
           carbs?: number;
           fats?: number;
           image_url?: string | null;
+          emoji?: string | null;
+          is_ai?: boolean;
           created_at?: string;
           updated_at?: string;
         };

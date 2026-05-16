@@ -1,31 +1,44 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import WeekDaySelector from '@/src/components/Dashboard/WeekDaySelector';
 import NutritionCard from '@/src/components/Dashboard/NutritionCard';
 import MealCard from '@/src/components/Dashboard/MealCard';
 import BottomNavBar from '@/src/components/Dashboard/BottomNavBar';
 import AddMealModal from '@/src/components/Dashboard/AddMealModal';
-import { useDashboardStore } from '@/src/store/dashboardStore';
+import { useDashboardStore, ClientMeal } from '@/src/store/dashboardStore';
 
 interface DashboardClientProps {
   userEmail: string;
+  initialMeals: ClientMeal[];
 }
 
-export default function DashboardClient({ userEmail }: DashboardClientProps) {
+export default function DashboardClient({ userEmail, initialMeals }: DashboardClientProps) {
   const firstName = userEmail.split('@')[0];
+  const [mounted, setMounted] = useState(false);
 
   /* Zustand store selectors */
   const meals = useDashboardStore((s) => s.meals);
+  const setInitialMeals = useDashboardStore((s) => s.setInitialMeals);
   const caloriesGoal = useDashboardStore((s) => s.caloriesGoal);
   const proteinGoal = useDashboardStore((s) => s.proteinGoal);
   const fatsGoal = useDashboardStore((s) => s.fatsGoal);
   const carbsGoal = useDashboardStore((s) => s.carbsGoal);
 
-  /* Dynamic calculations */
-  const caloriesConsumed = meals.reduce((sum, m) => sum + m.calories, 0);
-  const proteinConsumed = meals.reduce((sum, m) => sum + m.protein, 0);
-  const fatsConsumed = meals.reduce((sum, m) => sum + m.fats, 0);
-  const carbsConsumed = meals.reduce((sum, m) => sum + m.carbs, 0);
+  // Гидратация серверных блюд в клиентский стор Zustand при загрузке страницы
+  useEffect(() => {
+    setInitialMeals(initialMeals);
+    setMounted(true);
+  }, [initialMeals, setInitialMeals]);
+
+  /* Dynamic calculations (защита от ошибки Hydration failed) */
+  // На сервере и первом рендере используем initialMeals (данные из БД), чтобы HTML совпал на 100%.
+  // После монтирования переключаемся на Zustand стор для клиентской реактивности.
+  const displayMeals = mounted ? meals : initialMeals;
+  const caloriesConsumed = displayMeals.reduce((sum, m) => sum + m.calories, 0);
+  const proteinConsumed = displayMeals.reduce((sum, m) => sum + m.protein, 0);
+  const fatsConsumed = displayMeals.reduce((sum, m) => sum + m.fats, 0);
+  const carbsConsumed = displayMeals.reduce((sum, m) => sum + m.carbs, 0);
 
   const nutritionData = {
     caloriesGoal,
@@ -64,7 +77,7 @@ export default function DashboardClient({ userEmail }: DashboardClientProps) {
           Блюда за 11 мая
         </h2>
         <div className="flex flex-col gap-3">
-          {meals.map((meal) => (
+          {displayMeals.map((meal) => (
             <MealCard key={meal.id} meal={meal} />
           ))}
         </div>

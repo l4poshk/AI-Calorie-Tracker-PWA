@@ -6,11 +6,14 @@ import { useUIStore } from '@/src/store/uiStore';
 import { useDashboardStore, ClientMeal } from '@/src/store/dashboardStore';
 import { analyzeFood, AnalyzedMeal } from '@/src/actions/ai';
 import { compressImage } from '@/src/utils/image';
+import { uploadMealImage, saveMeal } from '@/src/actions/meals';
+import { useRouter } from 'next/navigation';
 
 export default function AddMealModal() {
   const isOpen = useUIStore((s) => s.isAddMealOpen);
   const close = useUIStore((s) => s.closeAddMeal);
   const addMeal = useDashboardStore((s) => s.addMeal);
+  const router = useRouter();
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -18,6 +21,7 @@ export default function AddMealModal() {
   // States
   const [step, setStep] = useState<'input' | 'review'>('input');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -38,6 +42,7 @@ export default function AddMealModal() {
     if (isOpen) {
       setStep('input');
       setIsAnalyzing(false);
+      setIsSaving(false);
       setTextInput('');
       setImageFile(null);
       setImagePreview(null);
@@ -48,16 +53,16 @@ export default function AddMealModal() {
   // Close on Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape' && !isSaving && !isAnalyzing) close();
     };
     if (isOpen) document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [isOpen, close]);
+  }, [isOpen, close, isSaving, isAnalyzing]);
 
   if (!isOpen) return null;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) close();
+    if (e.target === overlayRef.current && !isSaving && !isAnalyzing) close();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,26 +108,58 @@ export default function AddMealModal() {
     }
   };
 
-  const handleSave = () => {
-    // Generate current time string (HH:MM)
-    const now = new Date();
-    const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      setError(null);
 
-    const newMeal: ClientMeal = {
-      id: crypto.randomUUID(),
-      name: reviewData.name,
-      calories: reviewData.calories,
-      protein: reviewData.protein,
-      fats: reviewData.fats,
-      carbs: reviewData.carbs,
-      emoji: reviewData.emoji,
-      time,
-      imageUrl: imagePreview, // Use local preview for Phase 2
-      isAI: true,
-    };
+      let finalImageUrl = null;
 
-    addMeal(newMeal);
-    close();
+      // 1. Загружаем фото в Supabase Storage, если оно есть
+      if (imageFile) {
+        const base64 = await compressImage(imageFile);
+        finalImageUrl = await uploadMealImage(base64, 'image/jpeg');
+      }
+
+      // 2. Сохраняем запись в базу данных
+      const savedDbMeal = await saveMeal({
+        name: reviewData.name,
+        calories: reviewData.calories,
+        protein: reviewData.protein,
+        fats: reviewData.fats,
+        carbs: reviewData.carbs,
+        emoji: reviewData.emoji,
+        image_url: finalImageUrl,
+        is_ai: true, // В Фазе 2 все блюда идут через ИИ
+      });
+
+      // 3. Добавляем в локальный стейт Zustand
+      const now = new Date();
+      const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+      const newMeal: ClientMeal = {
+        id: savedDbMeal.id,
+        name: savedDbMeal.name,
+        calories: savedDbMeal.calories,
+        protein: savedDbMeal.protein,
+        fats: savedDbMeal.fats,
+        carbs: savedDbMeal.carbs,
+        emoji: savedDbMeal.emoji || '🍽️',
+        time,
+        imageUrl: finalImageUrl,
+        isAI: savedDbMeal.is_ai,
+      };
+
+      addMeal(newMeal);
+      
+      // Обновляем роутер для подхвата возможных серверных изменений
+      router.refresh();
+      close();
+    } catch (err: any) {
+      setError(err.message || 'Ошибка при сохранении блюда. Попробуйте еще раз.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -310,10 +347,20 @@ export default function AddMealModal() {
 
             <button
               onClick={handleSave}
-              className="w-full flex items-center justify-center gap-2 mt-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all"
+              disabled={isSaving}
+              className="w-full flex items-center justify-center gap-2 mt-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all disabled:opacity-60 disabled:active:scale-100"
             >
-              <Check className="w-5 h-5" />
-              Сохранить блюдо
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Сохранение...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Сохранить блюдо
+                </>
+              )}
             </button>
           </div>
         )}

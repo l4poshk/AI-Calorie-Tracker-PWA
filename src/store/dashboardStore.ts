@@ -26,6 +26,7 @@ interface DashboardState {
   /** Actions */
   addMeal: (meal: ClientMeal) => void;
   removeMeal: (id: string) => void;
+  setInitialMeals: (meals: ClientMeal[]) => void;
   setGoals: (goals: Partial<{
     caloriesGoal: number;
     proteinGoal: number;
@@ -34,44 +35,7 @@ interface DashboardState {
   }>) => void;
 }
 
-const INITIAL_MEALS: ClientMeal[] = [
-  {
-    id: '1',
-    name: 'Отварные яйца с огурцом и помидором',
-    calories: 268,
-    protein: 20,
-    fats: 16,
-    carbs: 10,
-    time: '13:24',
-    imageUrl: null,
-    emoji: '🥚',
-    isAI: true,
-  },
-  {
-    id: '2',
-    name: 'Лимонад Ava Orangelo',
-    calories: 200,
-    protein: 0,
-    fats: 0,
-    carbs: 50,
-    time: '01:15',
-    imageUrl: null,
-    emoji: '🍋',
-    isAI: false,
-  },
-  {
-    id: '3',
-    name: 'Овсянка с бананом и мёдом',
-    calories: 320,
-    protein: 8,
-    fats: 6,
-    carbs: 58,
-    time: '08:30',
-    imageUrl: null,
-    emoji: '🥣',
-    isAI: false,
-  },
-];
+const INITIAL_MEALS: ClientMeal[] = [];
 
 export const useDashboardStore = create<DashboardState>((set) => ({
   meals: INITIAL_MEALS,
@@ -89,6 +53,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   removeMeal: (id) =>
     set((state) => ({
       meals: state.meals.filter((m) => m.id !== id),
+    })),
+
+  setInitialMeals: (meals) =>
+    set(() => ({
+      meals,
     })),
 
   setGoals: (newGoals) =>
