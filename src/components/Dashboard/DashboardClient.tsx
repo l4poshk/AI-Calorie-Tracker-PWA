@@ -2,62 +2,10 @@
 
 import WeekDaySelector from '@/src/components/Dashboard/WeekDaySelector';
 import NutritionCard from '@/src/components/Dashboard/NutritionCard';
-import type { NutritionData } from '@/src/components/Dashboard/NutritionCard';
 import MealCard from '@/src/components/Dashboard/MealCard';
-import type { MealData } from '@/src/components/Dashboard/MealCard';
 import BottomNavBar from '@/src/components/Dashboard/BottomNavBar';
 import AddMealModal from '@/src/components/Dashboard/AddMealModal';
-
-/* ── Mock Data ───────────────────────────────────── */
-
-const MOCK_NUTRITION: NutritionData = {
-  caloriesGoal: 2000,
-  caloriesRemaining: 1532,
-  proteinGoal: 160,
-  proteinRemaining: 140,
-  fatsGoal: 60,
-  fatsRemaining: 44,
-  carbsGoal: 150,
-  carbsRemaining: 90,
-};
-
-const MOCK_MEALS: MealData[] = [
-  {
-    id: '1',
-    name: 'Отварные яйца с огурцом и помидором',
-    calories: 268,
-    protein: 20,
-    fats: 16,
-    carbs: 10,
-    time: '13:24',
-    imageUrl: null,
-    emoji: '🥚',
-  },
-  {
-    id: '2',
-    name: 'Лимонад Ava Orangelo',
-    calories: 200,
-    protein: 0,
-    fats: 0,
-    carbs: 50,
-    time: '01:15',
-    imageUrl: null,
-    emoji: '🍋',
-  },
-  {
-    id: '3',
-    name: 'Овсянка с бананом и мёдом',
-    calories: 320,
-    protein: 8,
-    fats: 6,
-    carbs: 58,
-    time: '08:30',
-    imageUrl: null,
-    emoji: '🥣',
-  },
-];
-
-/* ── Component ───────────────────────────────────── */
+import { useDashboardStore } from '@/src/store/dashboardStore';
 
 interface DashboardClientProps {
   userEmail: string;
@@ -65,6 +13,30 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ userEmail }: DashboardClientProps) {
   const firstName = userEmail.split('@')[0];
+
+  /* Zustand store selectors */
+  const meals = useDashboardStore((s) => s.meals);
+  const caloriesGoal = useDashboardStore((s) => s.caloriesGoal);
+  const proteinGoal = useDashboardStore((s) => s.proteinGoal);
+  const fatsGoal = useDashboardStore((s) => s.fatsGoal);
+  const carbsGoal = useDashboardStore((s) => s.carbsGoal);
+
+  /* Dynamic calculations */
+  const caloriesConsumed = meals.reduce((sum, m) => sum + m.calories, 0);
+  const proteinConsumed = meals.reduce((sum, m) => sum + m.protein, 0);
+  const fatsConsumed = meals.reduce((sum, m) => sum + m.fats, 0);
+  const carbsConsumed = meals.reduce((sum, m) => sum + m.carbs, 0);
+
+  const nutritionData = {
+    caloriesGoal,
+    caloriesRemaining: Math.max(0, caloriesGoal - caloriesConsumed),
+    proteinGoal,
+    proteinRemaining: Math.max(0, proteinGoal - proteinConsumed),
+    fatsGoal,
+    fatsRemaining: Math.max(0, fatsGoal - fatsConsumed),
+    carbsGoal,
+    carbsRemaining: Math.max(0, carbsGoal - carbsConsumed),
+  };
 
   return (
     <div className="relative min-h-dvh bg-[#FAF6F1] pb-28">
@@ -83,7 +55,7 @@ export default function DashboardClient({ userEmail }: DashboardClientProps) {
 
       {/* Nutrition summary card */}
       <div className="mt-2">
-        <NutritionCard data={MOCK_NUTRITION} />
+        <NutritionCard data={nutritionData} />
       </div>
 
       {/* Meals list */}
@@ -92,7 +64,7 @@ export default function DashboardClient({ userEmail }: DashboardClientProps) {
           Блюда за 11 мая
         </h2>
         <div className="flex flex-col gap-3">
-          {MOCK_MEALS.map((meal) => (
+          {meals.map((meal) => (
             <MealCard key={meal.id} meal={meal} />
           ))}
         </div>
@@ -106,3 +78,4 @@ export default function DashboardClient({ userEmail }: DashboardClientProps) {
     </div>
   );
 }
+
