@@ -277,7 +277,7 @@ export default function AddMealModal() {
         {step === 'review' && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-300">
             {imagePreview && (
-              <div className="w-full h-32 rounded-2xl overflow-hidden border border-[#3D4A3C]/10 flex-shrink-0">
+              <div className="w-full h-32 rounded-2xl overflow-hidden border border-[#3D4A3C]/10 shrink-0">
                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
               </div>
             )}

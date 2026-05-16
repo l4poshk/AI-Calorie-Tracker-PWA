@@ -26,7 +26,7 @@ export default function MealCard({ meal }: MealCardProps) {
       className="flex items-center gap-3.5 bg-white rounded-2xl p-3 shadow-sm shadow-[#3D4A3C]/5 transition-all hover:shadow-md active:scale-[0.98]"
     >
       {/* Meal thumbnail */}
-      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#E8DFD0] to-[#D4C9B8] flex items-center justify-center">
+      <div className="w-[72px] h-[72px] rounded-xl overflow-hidden shrink-0 bg-linear-to-br from-[#E8DFD0] to-[#D4C9B8] flex items-center justify-center">
         {meal.imageUrl ? (
           <img
             src={meal.imageUrl}
@@ -44,7 +44,7 @@ export default function MealCard({ meal }: MealCardProps) {
           <h3 className="text-[13px] font-semibold text-[#3D4A3C] leading-tight line-clamp-2">
             {meal.name}
           </h3>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {meal.isAI && (
               <span className="flex items-center gap-1 text-[10px] font-bold text-[#6B9E6A] bg-[#6B9E6A]/10 px-2 py-0.5 rounded-full border border-[#6B9E6A]/20">
                 <Sparkles className="w-3 h-3 text-[#6B9E6A]" />

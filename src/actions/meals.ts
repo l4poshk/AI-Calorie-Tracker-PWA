@@ -94,3 +94,33 @@ export async function getTodayMeals(): Promise<Meal[]> {
 
   return data || [];
 }
+
+/**
+ * Получает список блюд пользователя из таблицы 'meals' за последние 30 дней.
+ */
+export async function getMonthlyMeals(): Promise<Meal[]> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return [];
+  }
+
+  // Ровно 30 дней назад от текущей даты
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data, error } = await supabase
+    .from('meals')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .gte('created_at', thirtyDaysAgo.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Fetch Monthly Meals Error:', error);
+    return [];
+  }
+
+  return data || [];
+}

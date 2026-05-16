@@ -1,22 +1,30 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Home, Plus, BarChart3 } from 'lucide-react';
 import { useUIStore } from '@/src/store/uiStore';
 
 export default function BottomNavBar() {
   const openAddMeal = useUIStore((s) => s.openAddMeal);
+  const pathname = usePathname();
+
+  const isHistory = pathname === '/history';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40">
       <div className="mx-auto max-w-md px-6 pb-6 pt-2">
         <div className="flex items-center justify-around bg-[#8B7E74]/90 backdrop-blur-xl rounded-full px-4 py-2.5 shadow-lg shadow-black/10">
           {/* Home */}
-          <button
+          <Link
+            href="/dashboard"
             id="nav-home"
-            className="flex items-center justify-center w-11 h-11 rounded-full text-white/70 hover:text-white transition-colors"
+            className={`flex items-center justify-center w-11 h-11 rounded-full transition-colors ${
+              !isHistory ? 'text-white' : 'text-white/50 hover:text-white/80'
+            }`}
           >
-            <Home className="w-5.5 h-5.5" />
-          </button>
+            <Home className="w-[22px] h-[22px]" />
+          </Link>
 
           {/* Add meal (central FAB) */}
           <button
@@ -28,12 +36,15 @@ export default function BottomNavBar() {
           </button>
 
           {/* History */}
-          <button
+          <Link
+            href="/history"
             id="nav-history"
-            className="flex items-center justify-center w-11 h-11 rounded-full text-white/70 hover:text-white transition-colors"
+            className={`flex items-center justify-center w-11 h-11 rounded-full transition-colors ${
+              isHistory ? 'text-white' : 'text-white/50 hover:text-white/80'
+            }`}
           >
-            <BarChart3 className="w-5.5 h-5.5" />
-          </button>
+            <BarChart3 className="w-[22px] h-[22px]" />
+          </Link>
         </div>
       </div>
     </nav>

@@ -61,10 +61,10 @@ export default function NutritionCard({ data }: NutritionCardProps) {
     ((data.carbsGoal - data.carbsRemaining) / data.carbsGoal) * 100;
 
   return (
-    <div className="mx-4 rounded-3xl bg-gradient-to-br from-[#5E9E5E] to-[#7CC47C] p-5 shadow-lg shadow-[#6B9E6A]/20">
+    <div className="mx-4 rounded-3xl bg-linear-to-br from-[#5E9E5E] to-[#7CC47C] p-5 shadow-lg shadow-[#6B9E6A]/20">
       <div className="flex items-center gap-4">
         {/* Main calories circle */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <CircularProgress
             size={148}
             strokeWidth={10}
