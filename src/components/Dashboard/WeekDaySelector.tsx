@@ -1,41 +1,72 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bookmark, Settings } from 'lucide-react';
+import { useUIStore } from '@/src/store/uiStore';
+import { useDashboardStore } from '@/src/store/dashboardStore';
 
-const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const DAYS_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 interface DayItem {
-  date: number;
+  dateObj: Date;
+  dateNum: number;
   dayLabel: string;
+  isoString: string;
 }
 
 export default function WeekDaySelector() {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const openSettings = useUIStore((s) => s.openSettings);
+  const selectedDate = useDashboardStore((s) => s.selectedDate);
+  const setSelectedDate = useDashboardStore((s) => s.setSelectedDate);
+  const [days, setDays] = useState<DayItem[]>([]);
 
-  const days: DayItem[] = DAYS_SHORT.map((label, i) => ({
-    date: 11 + i,
-    dayLabel: label,
-  }));
+  useEffect(() => {
+    // Генерируем последние 7 дней (включая сегодня)
+    const generatedDays: DayItem[] = [];
+    const today = new Date();
+    
+    // Получаем локальную дату безопасно
+    const getLocalDateString = (d: Date) => {
+      const tzOffset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+    };
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      
+      generatedDays.push({
+        dateObj: d,
+        dateNum: d.getDate(),
+        dayLabel: DAYS_SHORT[d.getDay()],
+        isoString: getLocalDateString(d),
+      });
+    }
+    
+    setDays(generatedDays);
+  }, []);
 
   return (
     <div className="flex items-center justify-between px-4 pt-3 pb-2">
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1">
-        {days.map((day, i) => (
-          <button
-            key={day.date}
-            id={`day-selector-${day.date}`}
-            onClick={() => setSelectedIndex(i)}
-            className={`flex flex-col items-center justify-center min-w-[40px] h-[54px] rounded-2xl text-xs font-medium transition-all ${
-              selectedIndex === i
-                ? 'bg-[#6B9E6A] text-white shadow-md shadow-[#6B9E6A]/30'
-                : 'text-[#3D4A3C]/50 hover:bg-[#3D4A3C]/5'
-            }`}
-          >
-            <span className="text-[15px] font-bold leading-tight">{day.date}</span>
-            <span className="text-[10px] mt-0.5 leading-tight">{day.dayLabel}</span>
-          </button>
-        ))}
+        {days.map((day) => {
+          const isSelected = selectedDate === day.isoString;
+          return (
+            <button
+              key={day.isoString}
+              id={`day-selector-${day.isoString}`}
+              onClick={() => setSelectedDate(day.isoString)}
+              className={`flex flex-col items-center justify-center min-w-[40px] h-[54px] rounded-2xl text-xs font-medium transition-all ${
+                isSelected
+                  ? 'bg-[#6B9E6A] text-white shadow-md shadow-[#6B9E6A]/30'
+                  : 'text-[#3D4A3C]/50 hover:bg-[#3D4A3C]/5'
+              }`}
+            >
+              <span className="text-[15px] font-bold leading-tight">{day.dateNum}</span>
+              <span className="text-[10px] mt-0.5 leading-tight">{day.dayLabel}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-2 ml-3">
@@ -47,6 +78,7 @@ export default function WeekDaySelector() {
         </button>
         <button
           id="settings-button"
+          onClick={openSettings}
           className="p-1.5 text-[#3D4A3C]/40 hover:text-[#3D4A3C]/70 transition-colors"
         >
           <Settings className="w-5 h-5" />

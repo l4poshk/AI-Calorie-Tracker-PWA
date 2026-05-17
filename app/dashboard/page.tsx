@@ -17,25 +17,20 @@ export default async function DashboardPage() {
   // Получаем реальные блюда из базы данных Supabase
   const dbMeals = await getTodayMeals();
 
-  // Преобразуем в клиентский формат ClientMeal
-  const initialMeals = dbMeals.map((m) => {
-    const date = new Date(m.created_at);
-    const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  // Передаем сырые данные с сервера, чтобы клиент распарсил их в своей таймзоне
+  const rawMeals = dbMeals.map((m) => ({
+    id: m.id,
+    name: m.name,
+    calories: m.calories,
+    protein: m.protein,
+    fats: m.fats,
+    carbs: m.carbs,
+    emoji: m.emoji || '🍽️',
+    imageUrl: m.image_url,
+    isAI: m.is_ai,
+    createdAt: m.created_at,
+  }));
 
-    return {
-      id: m.id,
-      name: m.name,
-      calories: m.calories,
-      protein: m.protein,
-      fats: m.fats,
-      carbs: m.carbs,
-      emoji: m.emoji || '🍽️',
-      time,
-      imageUrl: m.image_url,
-      isAI: m.is_ai,
-    };
-  });
-
-  return <DashboardClient userEmail={user.email ?? 'User'} initialMeals={initialMeals} />;
+  return <DashboardClient userEmail={user.email ?? 'User'} rawMeals={rawMeals} />;
 }
 

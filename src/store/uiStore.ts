@@ -21,6 +21,11 @@ interface UIState {
   isAddMealOpen: boolean;
   openAddMeal: () => void;
   closeAddMeal: () => void;
+
+  /** Settings modal visibility */
+  isSettingsOpen: boolean;
+  openSettings: () => void;
+  closeSettings: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -47,4 +52,9 @@ export const useUIStore = create<UIState>((set) => ({
   isAddMealOpen: false,
   openAddMeal: () => set({ isAddMealOpen: true }),
   closeAddMeal: () => set({ isAddMealOpen: false }),
+
+  // Settings modal
+  isSettingsOpen: false,
+  openSettings: () => set({ isSettingsOpen: true }),
+  closeSettings: () => set({ isSettingsOpen: false }),
 }));

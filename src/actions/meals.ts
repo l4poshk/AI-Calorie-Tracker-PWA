@@ -96,9 +96,10 @@ export async function getTodayMeals(): Promise<Meal[]> {
 }
 
 /**
- * Получает список блюд пользователя из таблицы 'meals' за последние 30 дней.
+ * Получает список блюд пользователя из таблицы 'meals' за указанный диапазон дат.
+ * Диапазон дат должен быть в формате ISO (UTC), сформированном на клиенте.
  */
-export async function getMonthlyMeals(): Promise<Meal[]> {
+export async function getMealsByDateRange(startDateISO: string, endDateISO: string): Promise<Meal[]> {
   const supabase = await createClient();
   
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -106,19 +107,16 @@ export async function getMonthlyMeals(): Promise<Meal[]> {
     return [];
   }
 
-  // Ровно 30 дней назад от текущей даты
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
   const { data, error } = await supabase
     .from('meals')
     .select('*')
     .eq('user_id', userData.user.id)
-    .gte('created_at', thirtyDaysAgo.toISOString())
+    .gte('created_at', startDateISO)
+    .lt('created_at', endDateISO)
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Fetch Monthly Meals Error:', error);
+    console.error('Fetch Meals By Date Range Error:', error);
     return [];
   }
 

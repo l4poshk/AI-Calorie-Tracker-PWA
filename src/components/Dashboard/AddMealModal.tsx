@@ -136,6 +136,9 @@ export default function AddMealModal() {
       // 3. Добавляем в локальный стейт Zustand
       const now = new Date();
       const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      
+      const tzOffset = now.getTimezoneOffset() * 60000;
+      const dateString = new Date(now.getTime() - tzOffset).toISOString().split('T')[0];
 
       const newMeal: ClientMeal = {
         id: savedDbMeal.id,
@@ -146,6 +149,7 @@ export default function AddMealModal() {
         carbs: savedDbMeal.carbs,
         emoji: savedDbMeal.emoji || '🍽️',
         time,
+        dateString,
         imageUrl: finalImageUrl,
         isAI: savedDbMeal.is_ai,
       };

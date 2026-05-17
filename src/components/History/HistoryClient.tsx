@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import BottomNavBar from '@/src/components/Dashboard/BottomNavBar';
 import MealCard from '@/src/components/Dashboard/MealCard';
 import { ClientMeal } from '@/src/store/dashboardStore';
 import { useDashboardStore } from '@/src/store/dashboardStore';
+import { getMealsByDateRange } from '@/src/actions/meals';
 
 export interface HistoryMeal extends ClientMeal {
   dateString: string;
@@ -13,14 +14,20 @@ export interface HistoryMeal extends ClientMeal {
 
 interface HistoryClientProps {
   userEmail: string;
-  historyMeals: HistoryMeal[];
 }
 
-export default function HistoryClient({ historyMeals }: HistoryClientProps) {
+export default function HistoryClient({ userEmail }: HistoryClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(
-    new Date().toISOString().split('T')[0]
-  );
+  
+  // Получаем локальную дату в формате YYYY-MM-DD безопасно, учитывая timezone
+  const getLocalDateString = (d: Date) => {
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(getLocalDateString(new Date()));
+  const [historyMeals, setHistoryMeals] = useState<HistoryMeal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const caloriesGoal = useDashboardStore((s) => s.caloriesGoal);
 
@@ -38,6 +45,41 @@ export default function HistoryClient({ historyMeals }: HistoryClientProps) {
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
+
+  const fetchMonthMeals = async () => {
+    setIsLoading(true);
+    // Берем начало текущего просматриваемого месяца и начало следующего (по локальному времени клиента!)
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 1);
+    
+    // Передаем точные ISO строки (в UTC) на сервер, чтобы БД отфильтровала ровно то, что нужно
+    const dbMeals = await getMealsByDateRange(startDate.toISOString(), endDate.toISOString());
+    
+    const mapped = dbMeals.map((m) => {
+      const d = new Date(m.created_at);
+      const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      return {
+        id: m.id,
+        name: m.name,
+        calories: m.calories,
+        protein: m.protein,
+        fats: m.fats,
+        carbs: m.carbs,
+        emoji: m.emoji || '🍽️',
+        imageUrl: m.image_url,
+        isAI: m.is_ai,
+        time,
+        dateString: getLocalDateString(d),
+      };
+    });
+    
+    setHistoryMeals(mapped);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMonthMeals();
+  }, [year, month]);
 
   const prevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -145,8 +187,15 @@ export default function HistoryClient({ historyMeals }: HistoryClientProps) {
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {renderCalendarDays()}
+        <div className="relative min-h-[250px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-2xl">
+              <Loader2 className="w-8 h-8 animate-spin text-[#6B9E6A]" />
+            </div>
+          )}
+          <div className="grid grid-cols-7 gap-2">
+            {renderCalendarDays()}
+          </div>
         </div>
       </div>
 

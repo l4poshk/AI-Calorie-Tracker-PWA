@@ -8,6 +8,7 @@ export interface ClientMeal {
   fats: number;
   carbs: number;
   time: string;
+  dateString: string;
   imageUrl: string | null;
   emoji: string;
   isAI?: boolean;
@@ -16,6 +17,9 @@ export interface ClientMeal {
 interface DashboardState {
   /** List of logged meals for the selected day */
   meals: ClientMeal[];
+  
+  /** Currently selected local date in YYYY-MM-DD format */
+  selectedDate: string | null;
 
   /** Daily nutrition goals */
   caloriesGoal: number;
@@ -27,6 +31,7 @@ interface DashboardState {
   addMeal: (meal: ClientMeal) => void;
   removeMeal: (id: string) => void;
   setInitialMeals: (meals: ClientMeal[]) => void;
+  setSelectedDate: (date: string) => void;
   setGoals: (goals: Partial<{
     caloriesGoal: number;
     proteinGoal: number;
@@ -39,6 +44,7 @@ const INITIAL_MEALS: ClientMeal[] = [];
 
 export const useDashboardStore = create<DashboardState>((set) => ({
   meals: INITIAL_MEALS,
+  selectedDate: null,
 
   caloriesGoal: 2000,
   proteinGoal: 160,
@@ -58,6 +64,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setInitialMeals: (meals) =>
     set(() => ({
       meals,
+    })),
+
+  setSelectedDate: (date) =>
+    set(() => ({
+      selectedDate: date,
     })),
 
   setGoals: (newGoals) =>
