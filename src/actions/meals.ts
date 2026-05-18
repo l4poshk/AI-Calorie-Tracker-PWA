@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/src/lib/supabase/server';
-import { MealInsert, Meal } from '@/src/types/supabase';
+import { MealInsert, Meal, FavoriteMealInsert, FavoriteMeal } from '@/src/types/supabase';
 
 /**
  * Загружает сжатую base64-картинку в бакет 'food-photos' Supabase Storage
@@ -122,3 +122,158 @@ export async function getMealsByDateRange(startDateISO: string, endDateISO: stri
 
   return data || [];
 }
+
+/**
+ * Сохраняет блюдо вручную в 'meals' и, если нужно, в 'favorite_meals'.
+ */
+export async function saveManualMeal(
+  mealData: Omit<MealInsert, 'user_id' | 'is_ai'>,
+  saveAsFavorite: boolean
+): Promise<{ meal: Meal; favoriteMeal?: FavoriteMeal }> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error('Пользователь не авторизован');
+  }
+
+  const userId = userData.user.id;
+  const insertData = { ...mealData, user_id: userId, is_ai: false };
+
+  // Сохраняем в таблицу meals
+  const { data: meal, error: mealError } = await supabase
+    .from('meals')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (mealError) {
+    console.error('Insert Meal Error:', mealError);
+    throw new Error(`Ошибка сохранения приема пищи: ${mealError.message}`);
+  }
+
+  let favoriteMeal: FavoriteMeal | undefined;
+
+  // ПАРАЛЛЕЛЬНО сохраняем в favorite_meals, если чекбокс активирован
+  if (saveAsFavorite) {
+    // Проверяем, нет ли уже такого шаблона у юзера
+    const { data: existingFav } = await supabase
+      .from('favorite_meals')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('name', mealData.name.trim())
+      .maybeSingle();
+
+    if (existingFav) {
+      throw new Error('Шаблон с таким названием уже существует в Избранном.');
+    }
+
+    const favoriteData: FavoriteMealInsert = {
+      user_id: userId,
+      name: mealData.name,
+      calories: mealData.calories,
+      protein: mealData.protein || 0,
+      carbs: mealData.carbs || 0,
+      fats: mealData.fats || 0,
+      image_url: mealData.image_url || null,
+      emoji: mealData.emoji || null,
+    };
+    
+    // Жестко дожидаемся выполнения (чтобы процесс не убился в Serverless-среде)
+    const { data: favData, error: favError } = await supabase
+      .from('favorite_meals')
+      .insert(favoriteData)
+      .select()
+      .single();
+
+    if (favError) {
+      console.error('Save Favorite Error:', favError);
+    } else {
+      favoriteMeal = favData;
+    }
+  }
+
+  return { meal, favoriteMeal };
+}
+
+
+/**
+ * Получает список избранных блюд (шаблонов) пользователя.
+ */
+export async function getFavoriteMeals(): Promise<FavoriteMeal[]> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('favorite_meals')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Fetch Favorite Meals Error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Удаляет шаблон из таблицы 'favorite_meals'.
+ */
+export async function deleteFavoriteMeal(id: string): Promise<boolean> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error('Пользователь не авторизован');
+  }
+
+  const { error } = await supabase
+    .from('favorite_meals')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userData.user.id);
+
+  if (error) {
+    console.error('Delete Favorite Error:', error);
+    throw new Error(`Ошибка удаления шаблона: ${error.message}`);
+  }
+
+  return true;
+}
+
+/**
+ * Обновляет шаблон в таблице 'favorite_meals'.
+ */
+export async function updateFavoriteMeal(
+  id: string,
+  updates: Partial<FavoriteMealInsert>
+): Promise<FavoriteMeal> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error('Пользователь не авторизован');
+  }
+
+  const { data, error } = await supabase
+    .from('favorite_meals')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', userData.user.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Update Favorite Meal Error:', error);
+    throw new Error(`Ошибка обновления шаблона: ${error.message}`);
+  }
+
+  return data;
+}
+

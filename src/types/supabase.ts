@@ -62,6 +62,53 @@ export interface Database {
           },
         ];
       };
+      favorite_meals: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          calories: number;
+          protein: number;
+          carbs: number;
+          fats: number;
+          image_url: string | null;
+          emoji: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          calories: number;
+          protein?: number;
+          carbs?: number;
+          fats?: number;
+          image_url?: string | null;
+          emoji?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          calories?: number;
+          protein?: number;
+          carbs?: number;
+          fats?: number;
+          image_url?: string | null;
+          emoji?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'favorite_meals_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -78,3 +125,7 @@ export type MealInsert = Database['public']['Tables']['meals']['Insert'];
 
 /** Shorthand for updating a meal */
 export type MealUpdate = Database['public']['Tables']['meals']['Update'];
+
+export type FavoriteMeal = Database['public']['Tables']['favorite_meals']['Row'];
+export type FavoriteMealInsert = Database['public']['Tables']['favorite_meals']['Insert'];
+export type FavoriteMealUpdate = Database['public']['Tables']['favorite_meals']['Update'];

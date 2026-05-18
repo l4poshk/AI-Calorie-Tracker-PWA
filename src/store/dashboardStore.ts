@@ -38,6 +38,14 @@ interface DashboardState {
     fatsGoal: number;
     carbsGoal: number;
   }>) => void;
+
+  /** Water Tracker (ml) */
+  waterGoal: number;
+  waterPortion: number;
+  waterByDate: Record<string, number>;
+  addWater: (date: string, amount: number) => void;
+  setWaterGoal: (amount: number) => void;
+  setWaterPortion: (amount: number) => void;
 }
 
 const INITIAL_MEALS: ClientMeal[] = [];
@@ -75,5 +83,19 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set((state) => ({
       ...state,
       ...newGoals,
+    })),
+
+  waterGoal: 2000,
+  waterPortion: 250,
+  setWaterGoal: (amount) => set(() => ({ waterGoal: amount })),
+  setWaterPortion: (amount) => set(() => ({ waterPortion: amount })),
+
+  waterByDate: {},
+  addWater: (date, amount) =>
+    set((state) => ({
+      waterByDate: {
+        ...state.waterByDate,
+        [date]: (state.waterByDate[date] || 0) + amount,
+      },
     })),
 }));

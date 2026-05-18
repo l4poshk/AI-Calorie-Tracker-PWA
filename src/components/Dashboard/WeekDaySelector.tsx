@@ -16,6 +16,7 @@ interface DayItem {
 
 export default function WeekDaySelector() {
   const openSettings = useUIStore((s) => s.openSettings);
+  const openFavorites = useUIStore((s) => s.openFavorites);
   const selectedDate = useDashboardStore((s) => s.selectedDate);
   const setSelectedDate = useDashboardStore((s) => s.setSelectedDate);
   const [days, setDays] = useState<DayItem[]>([]);
@@ -72,6 +73,7 @@ export default function WeekDaySelector() {
       <div className="flex items-center gap-2 ml-3">
         <button
           id="bookmark-button"
+          onClick={openFavorites}
           className="p-1.5 text-[#3D4A3C]/40 hover:text-[#3D4A3C]/70 transition-colors"
         >
           <Bookmark className="w-5 h-5" />

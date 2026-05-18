@@ -7,6 +7,7 @@ import MealCard from '@/src/components/Dashboard/MealCard';
 import BottomNavBar from '@/src/components/Dashboard/BottomNavBar';
 import AddMealModal from '@/src/components/Dashboard/AddMealModal';
 import SettingsModal from '@/src/components/Dashboard/SettingsModal';
+import FavoritesModal from '@/src/components/Dashboard/FavoritesModal';
 import { useDashboardStore, ClientMeal } from '@/src/store/dashboardStore';
 
 interface DashboardClientProps {
@@ -137,6 +138,9 @@ export default function DashboardClient({ userEmail, rawMeals }: DashboardClient
 
       {/* Settings modal */}
       <SettingsModal />
+
+      {/* Favorites library modal */}
+      <FavoritesModal />
     </div>
   );
 }

@@ -26,6 +26,11 @@ interface UIState {
   isSettingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
+
+  /** Favorites library modal visibility */
+  isFavoritesOpen: boolean;
+  openFavorites: () => void;
+  closeFavorites: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -57,4 +62,9 @@ export const useUIStore = create<UIState>((set) => ({
   isSettingsOpen: false,
   openSettings: () => set({ isSettingsOpen: true }),
   closeSettings: () => set({ isSettingsOpen: false }),
+
+  // Favorites library modal
+  isFavoritesOpen: false,
+  openFavorites: () => set({ isFavoritesOpen: true }),
+  closeFavorites: () => set({ isFavoritesOpen: false }),
 }));
