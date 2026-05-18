@@ -4,10 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { useUIStore } from '@/src/store/uiStore';
 import { useDashboardStore } from '@/src/store/dashboardStore';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 export default function SettingsModal() {
   const isSettingsOpen = useUIStore((s) => s.isSettingsOpen);
   const closeSettings = useUIStore((s) => s.closeSettings);
+  const { t } = useLanguage();
   
   const { caloriesGoal, proteinGoal, fatsGoal, carbsGoal, setGoals } = useDashboardStore();
 
@@ -21,6 +23,7 @@ export default function SettingsModal() {
   // Синхронизируем стейт формы при открытии модалки
   useEffect(() => {
     if (isSettingsOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         calories: caloriesGoal,
         protein: proteinGoal,
@@ -48,9 +51,9 @@ export default function SettingsModal() {
       <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-xl border border-[#3D4A3C]/10 animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold text-[#3D4A3C]">Настройки целей</h2>
+            <h2 className="text-lg font-bold text-[#3D4A3C]">{t('settings_goals_title')}</h2>
             <p className="text-xs text-[#3D4A3C]/50 font-medium mt-0.5">
-              Установи свои суточные нормы КБЖУ
+              {t('settings_goals_desc')}
             </p>
           </div>
           <button
@@ -64,7 +67,7 @@ export default function SettingsModal() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-bold text-[#3D4A3C]/60 uppercase mb-1.5">
-              Калории (ккал)
+              {t('calories_kcal')}
             </label>
             <input
               type="number"
@@ -80,7 +83,7 @@ export default function SettingsModal() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-[#3D4A3C]/60 uppercase mb-1.5">
-                Белки (г)
+                {t('protein_g')}
               </label>
               <input
                 type="number"
@@ -94,7 +97,7 @@ export default function SettingsModal() {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-[#3D4A3C]/60 uppercase mb-1.5">
-                Жиры (г)
+                {t('fats_g')}
               </label>
               <input
                 type="number"
@@ -108,7 +111,7 @@ export default function SettingsModal() {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-[#3D4A3C]/60 uppercase mb-1.5">
-                Углеводы (г)
+                {t('carbs_g')}
               </label>
               <input
                 type="number"
@@ -127,7 +130,7 @@ export default function SettingsModal() {
             className="w-full mt-2 flex items-center justify-center gap-2 bg-[#6B9E6A] hover:bg-[#5E8E5E] active:scale-[0.98] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-[#6B9E6A]/30 transition-all"
           >
             <Check className="w-5 h-5" />
-            Сохранить цели
+            {t('save_goals')}
           </button>
         </form>
       </div>

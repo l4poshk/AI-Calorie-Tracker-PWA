@@ -29,7 +29,7 @@ export default function BottomNavBar() {
           {/* Add meal (central FAB) */}
           <button
             id="nav-add-meal"
-            onClick={openAddMeal}
+            onClick={() => openAddMeal()}
             className="flex items-center justify-center w-14 h-14 -mt-4 rounded-full bg-[#6B9E6A] text-white shadow-lg shadow-[#6B9E6A]/40 hover:bg-[#5E8E5E] active:scale-90 transition-all"
           >
             <Plus className="w-7 h-7" strokeWidth={2.5} />

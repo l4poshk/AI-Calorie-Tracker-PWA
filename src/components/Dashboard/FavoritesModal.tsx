@@ -7,11 +7,13 @@ import { getFavoriteMeals, deleteFavoriteMeal, updateFavoriteMeal, uploadMealIma
 import { FavoriteMeal } from '@/src/types/supabase';
 import { compressImage } from '@/src/utils/image';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 export default function FavoritesModal() {
   const isOpen = useUIStore((s) => s.isFavoritesOpen);
   const close = useUIStore((s) => s.closeFavorites);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +44,7 @@ export default function FavoritesModal() {
         try {
           const data = await getFavoriteMeals();
           setFavorites(data);
-        } catch (err: any) {
+        } catch (err: unknown) {
           setError('Не удалось загрузить избранные блюда.');
           console.error(err);
         } finally {
@@ -50,6 +52,7 @@ export default function FavoritesModal() {
         }
       };
       fetchFavs();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditingFavId(null);
       setEditImageFile(null);
       setEditImagePreview(null);
@@ -146,8 +149,8 @@ export default function FavoritesModal() {
       setEditImageFile(null);
       setEditImagePreview(null);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при сохранении изменений.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка при сохранении изменений.');
     } finally {
       setIsSaving(false);
     }
@@ -161,8 +164,8 @@ export default function FavoritesModal() {
         handleCancelEdit();
       }
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при удалении шаблона.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка при удалении шаблона.');
     }
   };
 
@@ -180,8 +183,8 @@ export default function FavoritesModal() {
               <Bookmark className="w-5 h-5 fill-current" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#3D4A3C]">Избранные блюда</h2>
-              <p className="text-xs text-[#3D4A3C]/50">Управление вашими шаблонами</p>
+              <h2 className="text-lg font-bold text-[#3D4A3C]">{t('fav_modal_title')}</h2>
+              <p className="text-xs text-[#3D4A3C]/50">{t('fav_modal_desc')}</p>
             </div>
           </div>
           <button
@@ -203,11 +206,11 @@ export default function FavoritesModal() {
           {isLoading ? (
             <div className="h-32 flex flex-col items-center justify-center text-[#3D4A3C]/40 text-sm gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-[#6B9E6A]" />
-              Загрузка шаблонов...
+              {t('loading_templates')}
             </div>
           ) : favorites.length === 0 ? (
             <div className="h-32 flex flex-col items-center justify-center text-[#3D4A3C]/40 text-sm bg-[#FAF6F1] rounded-2xl border border-[#3D4A3C]/5 p-6 text-center">
-              У вас пока нет сохраненных избранных блюд. Добавляйте их при создании приемов пищи!
+              {t('no_favs_empty')}
             </div>
           ) : (
             favorites.map((fav) => {
@@ -220,7 +223,7 @@ export default function FavoritesModal() {
                     className="bg-[#FAF6F1] border-2 border-[#6B9E6A]/40 rounded-2xl p-4 flex flex-col gap-3.5 animate-in fade-in duration-200 shadow-sm shrink-0"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B9E6A] uppercase tracking-wide">Редактирование шаблона</span>
+                      <span className="text-xs font-bold text-[#6B9E6A] uppercase tracking-wide">{t('edit_template')}</span>
                       <button
                         onClick={() => handleDelete(fav.id)}
                         disabled={isSaving}
@@ -270,7 +273,7 @@ export default function FavoritesModal() {
                           className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#3D4A3C]/20 bg-white px-3 py-4 text-xs font-semibold text-[#3D4A3C]/60 hover:bg-[#FAF6F1] hover:border-[#6B9E6A]/40 transition-all disabled:opacity-60"
                         >
                           <Camera className="w-4 h-4 text-[#6B9E6A]" />
-                          Добавить фото блюда
+                          {t('add_photo')}
                         </button>
                       )}
                     </div>
@@ -278,7 +281,7 @@ export default function FavoritesModal() {
                     {/* Inputs */}
                     <div className="flex gap-2.5">
                       <div className="flex-1">
-                        <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Название</label>
+                        <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('name_label')}</label>
                         <input
                           type="text"
                           value={editData.name}
@@ -300,7 +303,7 @@ export default function FavoritesModal() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Калории (Ккал)</label>
+                      <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('calories_kcal')}</label>
                       <input
                         type="number"
                         min="1"
@@ -313,7 +316,7 @@ export default function FavoritesModal() {
 
                     <div className="grid grid-cols-3 gap-2.5">
                       <div>
-                        <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">Белки (г)</label>
+                        <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">{t('protein_g')}</label>
                         <input
                           type="number"
                           min="0"
@@ -324,7 +327,7 @@ export default function FavoritesModal() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">Жиры (г)</label>
+                        <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">{t('fats_g')}</label>
                         <input
                           type="number"
                           min="0"
@@ -335,7 +338,7 @@ export default function FavoritesModal() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">Угл (г)</label>
+                        <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">{t('carbs_g_short')}</label>
                         <input
                           type="number"
                           min="0"
@@ -353,7 +356,7 @@ export default function FavoritesModal() {
                         disabled={isSaving}
                         className="flex-1 py-2.5 rounded-xl border border-[#3D4A3C]/10 bg-white text-xs font-bold text-[#3D4A3C] hover:bg-[#FAF6F1] transition-all disabled:opacity-60"
                       >
-                        Отмена
+                        {t('cancel')}
                       </button>
                       <button
                         onClick={() => handleSaveEdit(fav)}
@@ -361,7 +364,7 @@ export default function FavoritesModal() {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#6B9E6A] text-xs font-bold text-white shadow-md shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.98] transition-all disabled:opacity-60"
                       >
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        Сохранить
+                        {t('save')}
                       </button>
                     </div>
                   </div>
@@ -385,9 +388,9 @@ export default function FavoritesModal() {
                       <span className="text-2xl shrink-0 p-2 bg-[#FAF6F1] rounded-2xl border border-[#3D4A3C]/5">{fav.emoji || '🍽️'}</span>
                       <div className="flex flex-col overflow-hidden text-left">
                         <span className="text-sm font-bold text-[#3D4A3C] truncate">{fav.name}</span>
-                        <span className="text-xs font-extrabold text-[#6B9E6A] mt-0.5">{fav.calories} ккал</span>
+                        <span className="text-xs font-extrabold text-[#6B9E6A] mt-0.5">{fav.calories} {t('kcal').toLowerCase()}</span>
                         <span className="text-[11px] text-[#3D4A3C]/50 font-medium mt-1 truncate">
-                          Белки: {fav.protein}г • Жиры: {fav.fats}г • Углеводы: {fav.carbs}г
+                          {t('protein')}: {fav.protein}г • {t('fats')}: {fav.fats}г • {t('carbs')}: {fav.carbs}г
                         </span>
                       </div>
                     </div>

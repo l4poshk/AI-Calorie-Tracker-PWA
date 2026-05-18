@@ -9,13 +9,15 @@ import AddMealModal from '@/src/components/Dashboard/AddMealModal';
 import SettingsModal from '@/src/components/Dashboard/SettingsModal';
 import FavoritesModal from '@/src/components/Dashboard/FavoritesModal';
 import { useDashboardStore, ClientMeal } from '@/src/store/dashboardStore';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 interface DashboardClientProps {
   userEmail: string;
-  rawMeals: any[];
+  rawMeals: { id: string; name: string; calories: number; protein: number; fats: number; carbs: number; createdAt: string; emoji: string; imageUrl: string | null; isAI: boolean }[];
 }
 
 export default function DashboardClient({ userEmail, rawMeals }: DashboardClientProps) {
+  const { t, language } = useLanguage();
   const firstName = userEmail.split('@')[0];
   const [mounted, setMounted] = useState(false);
 
@@ -60,6 +62,7 @@ export default function DashboardClient({ userEmail, rawMeals }: DashboardClient
     if (!useDashboardStore.getState().selectedDate) {
       setSelectedDate(todayString);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, [rawMeals, setInitialMeals, setSelectedDate, todayString]);
 
@@ -73,28 +76,29 @@ export default function DashboardClient({ userEmail, rawMeals }: DashboardClient
 
   const nutritionData = {
     caloriesGoal,
-    caloriesRemaining: Math.max(0, caloriesGoal - caloriesConsumed),
+    caloriesRemaining: caloriesGoal - caloriesConsumed,
     proteinGoal,
-    proteinRemaining: Math.max(0, proteinGoal - proteinConsumed),
+    proteinRemaining: proteinGoal - proteinConsumed,
     fatsGoal,
-    fatsRemaining: Math.max(0, fatsGoal - fatsConsumed),
+    fatsRemaining: fatsGoal - fatsConsumed,
     carbsGoal,
-    carbsRemaining: Math.max(0, carbsGoal - carbsConsumed),
+    carbsRemaining: carbsGoal - carbsConsumed,
   };
 
   // Получаем красивое название выбранного дня
   const getSelectedDayTitle = () => {
-    if (selectedDate === todayString) return 'Блюда за сегодня';
+    if (selectedDate === todayString) return t('meals_today');
     const d = new Date(selectedDate);
-    return `Блюда за ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`;
+    const locale = language === 'en' ? 'en-US' : 'ru-RU';
+    return `${t('meals_for')} ${d.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}`;
   };
 
   return (
-    <div className="relative min-h-dvh bg-[#FAF6F1] pb-28">
+    <div className="relative min-h-dvh bg-[#FAF6F1] pb-40">
       {/* Greeting */}
       <div className="px-5 pt-4 pb-1">
         <p className="text-[13px] text-[#5C6B4F]/60 font-medium">
-          Привет 👋
+          {t('greeting')}
         </p>
         <h1 className="text-xl font-bold text-[#3D4A3C] capitalize">
           {firstName}
@@ -123,7 +127,7 @@ export default function DashboardClient({ userEmail, rawMeals }: DashboardClient
             mounted && (
               <div className="bg-white rounded-2xl p-6 text-center shadow-sm shadow-[#3D4A3C]/5">
                 <span className="text-3xl mb-2 block">🍃</span>
-                <p className="text-[#3D4A3C]/60 text-sm font-medium">В этот день записей нет</p>
+                <p className="text-[#3D4A3C]/60 text-sm font-medium">{t('no_records')}</p>
               </div>
             )
           )}

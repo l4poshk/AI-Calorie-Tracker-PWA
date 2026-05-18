@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface ClientMeal {
   id: string;
@@ -30,6 +31,7 @@ interface DashboardState {
   /** Actions */
   addMeal: (meal: ClientMeal) => void;
   removeMeal: (id: string) => void;
+  updateMealInStore: (id: string, updates: Partial<ClientMeal>) => void;
   setInitialMeals: (meals: ClientMeal[]) => void;
   setSelectedDate: (date: string) => void;
   setGoals: (goals: Partial<{
@@ -50,52 +52,74 @@ interface DashboardState {
 
 const INITIAL_MEALS: ClientMeal[] = [];
 
-export const useDashboardStore = create<DashboardState>((set) => ({
-  meals: INITIAL_MEALS,
-  selectedDate: null,
+export const useDashboardStore = create<DashboardState>()(
+  persist(
+    (set) => ({
+      meals: INITIAL_MEALS,
+      selectedDate: null,
 
-  caloriesGoal: 2000,
-  proteinGoal: 160,
-  fatsGoal: 60,
-  carbsGoal: 150,
+      caloriesGoal: 2000,
+      proteinGoal: 160,
+      fatsGoal: 60,
+      carbsGoal: 150,
 
-  addMeal: (meal) =>
-    set((state) => ({
-      meals: [meal, ...state.meals],
-    })),
+      addMeal: (meal) =>
+        set((state) => ({
+          meals: [meal, ...state.meals],
+        })),
 
-  removeMeal: (id) =>
-    set((state) => ({
-      meals: state.meals.filter((m) => m.id !== id),
-    })),
+      removeMeal: (id) =>
+        set((state) => ({
+          meals: state.meals.filter((m) => m.id !== id),
+        })),
 
-  setInitialMeals: (meals) =>
-    set(() => ({
-      meals,
-    })),
+      updateMealInStore: (id, updates) =>
+        set((state) => ({
+          meals: state.meals.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+        })),
 
-  setSelectedDate: (date) =>
-    set(() => ({
-      selectedDate: date,
-    })),
+      setInitialMeals: (meals) =>
+        set(() => ({
+          meals,
+        })),
 
-  setGoals: (newGoals) =>
-    set((state) => ({
-      ...state,
-      ...newGoals,
-    })),
+      setSelectedDate: (date) =>
+        set(() => ({
+          selectedDate: date,
+        })),
 
-  waterGoal: 2000,
-  waterPortion: 250,
-  setWaterGoal: (amount) => set(() => ({ waterGoal: amount })),
-  setWaterPortion: (amount) => set(() => ({ waterPortion: amount })),
+      setGoals: (newGoals) =>
+        set((state) => ({
+          ...state,
+          ...newGoals,
+        })),
 
-  waterByDate: {},
-  addWater: (date, amount) =>
-    set((state) => ({
-      waterByDate: {
-        ...state.waterByDate,
-        [date]: (state.waterByDate[date] || 0) + amount,
-      },
-    })),
-}));
+      waterGoal: 2000,
+      waterPortion: 250,
+      setWaterGoal: (amount) => set(() => ({ waterGoal: amount })),
+      setWaterPortion: (amount) => set(() => ({ waterPortion: amount })),
+
+      waterByDate: {},
+      addWater: (date, amount) =>
+        set((state) => ({
+          waterByDate: {
+            ...state.waterByDate,
+            [date]: (state.waterByDate[date] || 0) + amount,
+          },
+        })),
+    }),
+    {
+      name: 'dashboard-store',
+      partialize: (state) => ({
+        waterByDate: state.waterByDate,
+        waterGoal: state.waterGoal,
+        waterPortion: state.waterPortion,
+        caloriesGoal: state.caloriesGoal,
+        proteinGoal: state.proteinGoal,
+        fatsGoal: state.fatsGoal,
+        carbsGoal: state.carbsGoal,
+        selectedDate: state.selectedDate,
+      }),
+    }
+  )
+);

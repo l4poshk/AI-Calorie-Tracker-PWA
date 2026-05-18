@@ -277,3 +277,96 @@ export async function updateFavoriteMeal(
   return data;
 }
 
+/**
+ * Удаляет прием пищи из таблицы 'meals'.
+ * Если у блюда есть картинка в бакете 'food-photos', сначала удаляет её из Storage.
+ * Только при успешном удалении файла удаляется запись из БД.
+ */
+export async function deleteMeal(mealId: string): Promise<boolean> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error('Пользователь не авторизован');
+  }
+
+  // Сначала получаем блюдо, чтобы проверить image_url
+  const { data: meal, error: fetchError } = await supabase
+    .from('meals')
+    .select('image_url')
+    .eq('id', mealId)
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Fetch Meal Error:', fetchError);
+    throw new Error(`Ошибка поиска блюда: ${fetchError.message}`);
+  }
+
+  // Если есть image_url, удаляем файл из Storage перед удалением из БД
+  if (meal?.image_url) {
+    try {
+      // Отрезаем домен и имя бакета, чтобы получить относительный путь внутри бакета
+      const parts = meal.image_url.split('/object/public/food-photos/');
+      const parsedPath = parts.length > 1 ? parts[1] : null;
+
+      if (!parsedPath) {
+        console.warn('Внимание: не удалось извлечь путь к файлу из image_url');
+      } else {
+        const { error: storageError } = await supabase.storage
+          .from('food-photos')
+          .remove([parsedPath]);
+          
+        if (storageError) {
+          console.warn('Внимание: не удалось удалить файл из Storage (возможно уже удален роботом):', storageError.message);
+        }
+      }
+    } catch (err: unknown) {
+      console.warn('Внимание: непредвиденная ошибка при удалении картинки из Storage:', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Удаляем строку из БД в любом случае
+  const { error: deleteError } = await supabase
+    .from('meals')
+    .delete()
+    .eq('id', mealId)
+    .eq('user_id', userData.user.id);
+
+  if (deleteError) {
+    console.error('Delete Meal Error:', deleteError);
+    throw new Error(`Ошибка удаления блюда из БД: ${deleteError.message}`);
+  }
+
+  return true;
+}
+
+/**
+ * Обновляет существующий прием пищи в таблице 'meals'.
+ */
+export async function updateMeal(
+  mealId: string,
+  updates: Partial<MealInsert>
+): Promise<Meal> {
+  const supabase = await createClient();
+  
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error('Пользователь не авторизован');
+  }
+
+  const { data, error } = await supabase
+    .from('meals')
+    .update(updates)
+    .eq('id', mealId)
+    .eq('user_id', userData.user.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Update Meal Error:', error);
+    throw new Error(`Ошибка обновления блюда: ${error.message}`);
+  }
+
+  return data;
+}

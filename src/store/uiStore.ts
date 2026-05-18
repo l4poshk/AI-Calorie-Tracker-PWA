@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ClientMeal } from './dashboardStore';
 
 interface Alert {
   id: string;
@@ -19,7 +20,8 @@ interface UIState {
 
   /** Add-meal modal visibility */
   isAddMealOpen: boolean;
-  openAddMeal: () => void;
+  mealToEdit: ClientMeal | null;
+  openAddMeal: (meal?: ClientMeal) => void;
   closeAddMeal: () => void;
 
   /** Settings modal visibility */
@@ -55,8 +57,12 @@ export const useUIStore = create<UIState>((set) => ({
 
   // Add-meal modal
   isAddMealOpen: false,
-  openAddMeal: () => set({ isAddMealOpen: true }),
-  closeAddMeal: () => set({ isAddMealOpen: false }),
+  mealToEdit: null,
+  openAddMeal: (meal) => {
+    const isMeal = meal && typeof meal === 'object' && 'id' in meal && 'name' in meal;
+    set({ isAddMealOpen: true, mealToEdit: isMeal ? meal : null });
+  },
+  closeAddMeal: () => set({ isAddMealOpen: false, mealToEdit: null }),
 
   // Settings modal
   isSettingsOpen: false,

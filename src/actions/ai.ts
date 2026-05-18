@@ -8,6 +8,7 @@ export interface AnalyzeFoodParams {
     base64: string;
     mimeType: string;
   };
+  lang?: 'ru' | 'en';
 }
 
 export interface AnalyzedMeal {
@@ -38,12 +39,17 @@ export async function analyzeFood(params: AnalyzeFoodParams): Promise<AnalyzedMe
       }
     });
 
+    const lang = params.lang || 'ru';
+    const nameInstruction = lang === 'en' 
+      ? '"string (A concise, appetizing name in English, e.g., \'Cheeseburger with fries\')"'
+      : '"string (A concise, appetizing name in Russian, e.g., \'Сырники со сметаной\')"';
+
     // Жесткий системный промпт
     const prompt = `You are an expert nutritionist AI. 
 Analyze the provided food description or image and accurately estimate the nutritional values.
 Respond STRICTLY with a valid JSON object matching this structure exactly (do not wrap in markdown):
 {
-  "name": "string (A concise, appetizing name in Russian, e.g., 'Сырники со сметаной')",
+  "name": ${nameInstruction},
   "calories": number (integer),
   "protein": number (integer, in grams),
   "fats": number (integer, in grams),
@@ -53,7 +59,7 @@ Respond STRICTLY with a valid JSON object matching this structure exactly (do no
 If both image and text are provided, use the text to provide context for the image. 
 If you cannot identify the food precisely, provide a best-guess estimate for a standard portion.`;
 
-    const contents: any[] = [prompt];
+    const contents: Array<string | { inlineData: { data: string; mimeType: string } }> = [prompt];
 
     if (params.text) {
       contents.push(params.text);
@@ -93,8 +99,8 @@ If you cannot identify the food precisely, provide a best-guess estimate for a s
       carbs: data.carbs || 0,
       emoji: data.emoji || '🍽️'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Gemini API Error:', error);
-    throw new Error(error.message || 'Произошла ошибка при анализе еды через ИИ.');
+    throw new Error(error instanceof Error ? error.message : 'Произошла ошибка при анализе еды через ИИ.');
   }
 }

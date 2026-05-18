@@ -7,6 +7,7 @@ import MealCard from '@/src/components/Dashboard/MealCard';
 import { ClientMeal } from '@/src/store/dashboardStore';
 import { useDashboardStore } from '@/src/store/dashboardStore';
 import { getMealsByDateRange } from '@/src/actions/meals';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 export interface HistoryMeal extends ClientMeal {
   dateString: string;
@@ -18,6 +19,7 @@ interface HistoryClientProps {
 
 export default function HistoryClient({ userEmail }: HistoryClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { t, language } = useLanguage();
   
   // Получаем локальную дату в формате YYYY-MM-DD безопасно, учитывая timezone
   const getLocalDateString = (d: Date) => {
@@ -42,8 +44,8 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
   const startDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
   const monthNames = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    t('month_0'), t('month_1'), t('month_2'), t('month_3'), t('month_4'), t('month_5'),
+    t('month_6'), t('month_7'), t('month_8'), t('month_9'), t('month_10'), t('month_11')
   ];
 
   const fetchMonthMeals = async () => {
@@ -78,6 +80,7 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchMonthMeals();
   }, [year, month]);
 
@@ -153,12 +156,12 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
   };
 
   return (
-    <div className="relative min-h-dvh bg-[#FAF6F1] pb-28">
+    <div className="relative min-h-dvh bg-[#FAF6F1] pb-40">
       {/* Header */}
       <div className="px-5 pt-8 pb-4">
-        <h1 className="text-2xl font-bold text-[#3D4A3C]">История</h1>
+        <h1 className="text-2xl font-bold text-[#3D4A3C]">{t('history_title')}</h1>
         <p className="text-[13px] text-[#5C6B4F]/60 font-medium mt-1">
-          Твоя статистика за месяц
+          {t('history_desc')}
         </p>
       </div>
 
@@ -179,8 +182,8 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
 
         {/* Days Header */}
         <div className="grid grid-cols-7 gap-2 mb-2 text-center">
-          {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
-            <div key={d} className="text-[11px] font-bold text-[#3D4A3C]/40">
+          {[t('day_0'), t('day_1'), t('day_2'), t('day_3'), t('day_4'), t('day_5'), t('day_6')].map((d) => (
+            <div key={d} className="text-[11px] font-bold text-[#3D4A3C]/40 truncate">
               {d}
             </div>
           ))}
@@ -204,14 +207,14 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
         <section className="mt-8 px-4">
           <div className="flex items-end justify-between mb-4">
             <h2 className="text-lg font-bold text-[#3D4A3C]">
-              {new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              {new Date(selectedDate).toLocaleDateString(language === 'en' ? 'en-US' : 'ru-RU', { day: 'numeric', month: 'long' })}
             </h2>
             <div className="text-right">
               <span className={`text-[15px] font-bold ${selectedCalories > caloriesGoal ? 'text-[#E85D5D]' : 'text-[#6B9E6A]'}`}>
                 {selectedCalories} 
               </span>
               <span className="text-[11px] font-medium text-[#3D4A3C]/50 ml-1">
-                / {caloriesGoal} ккал
+                / {caloriesGoal} {t('kcal').toLowerCase()}
               </span>
             </div>
           </div>
@@ -224,7 +227,7 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
             ) : (
               <div className="bg-white rounded-2xl p-6 text-center shadow-sm shadow-[#3D4A3C]/5">
                 <span className="text-3xl mb-2 block">🍃</span>
-                <p className="text-[#3D4A3C]/60 text-sm font-medium">В этот день записей нет</p>
+                <p className="text-[#3D4A3C]/60 text-sm font-medium">{t('no_records')}</p>
               </div>
             )}
           </div>

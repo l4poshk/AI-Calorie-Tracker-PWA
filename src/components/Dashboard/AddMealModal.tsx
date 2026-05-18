@@ -6,17 +6,40 @@ import { useUIStore } from '@/src/store/uiStore';
 import { useDashboardStore, ClientMeal } from '@/src/store/dashboardStore';
 import { analyzeFood, AnalyzedMeal } from '@/src/actions/ai';
 import { compressImage } from '@/src/utils/image';
-import { uploadMealImage, saveMeal, saveManualMeal, getFavoriteMeals, deleteFavoriteMeal } from '@/src/actions/meals';
+import { uploadMealImage, saveMeal, saveManualMeal, getFavoriteMeals, deleteFavoriteMeal, updateMeal } from '@/src/actions/meals';
 import { FavoriteMeal } from '@/src/types/supabase';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 const MAX_VISIBLE_FAVORITES = 3;
 
 export default function AddMealModal() {
   const isOpen = useUIStore((s) => s.isAddMealOpen);
+  const mealToEdit = useUIStore((s) => s.mealToEdit);
   const close = useUIStore((s) => s.closeAddMeal);
   const addMeal = useDashboardStore((s) => s.addMeal);
+  const updateMealInStore = useDashboardStore((s) => s.updateMealInStore);
+  const selectedDate = useDashboardStore((s) => s.selectedDate);
   const router = useRouter();
+  const { t, language } = useLanguage();
+
+  const getLocalDateString = (d: Date) => {
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+  };
+
+  const todayString = getLocalDateString(new Date());
+  const targetDateString = selectedDate || todayString;
+  const isNotToday = targetDateString !== todayString;
+
+  const formattedTargetDate = (() => {
+    try {
+      const [y, m, d] = targetDateString.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString(language === 'en' ? 'en-US' : 'ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch {
+      return targetDateString;
+    }
+  })();
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,8 +83,26 @@ export default function AddMealModal() {
 
   // Reset state when modal opens/closes
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (isOpen) {
-      setActiveTab('ai');
+      if (mealToEdit) {
+        setActiveTab('manual');
+        setManualData({
+          name: mealToEdit.name,
+          calories: mealToEdit.calories,
+          protein: mealToEdit.protein,
+          fats: mealToEdit.fats,
+          carbs: mealToEdit.carbs,
+          emoji: mealToEdit.emoji,
+        });
+        setManualImagePreview(mealToEdit.imageUrl || null);
+        setManualImageFile(null);
+      } else {
+        setActiveTab('ai');
+        setManualData({ name: '', calories: 0, protein: 0, fats: 0, carbs: 0, emoji: '🍽️' });
+        setManualImagePreview(null);
+        setManualImageFile(null);
+      }
       setStep('input');
       setIsAnalyzing(false);
       setIsSaving(false);
@@ -71,15 +112,12 @@ export default function AddMealModal() {
       setError(null);
       setSaveAsFavorite(false);
       setIsDropdownOpen(false);
-      setManualImageFile(null);
-      setManualImagePreview(null);
-      setManualData({ name: '', calories: 0, protein: 0, fats: 0, carbs: 0, emoji: '🍽️' });
     }
-  }, [isOpen]);
+  }, [isOpen, mealToEdit]);
 
   // Fetch favorites when switching to manual tab
   useEffect(() => {
-    if (isOpen && activeTab === 'manual' && favorites.length === 0) {
+    if (isOpen && activeTab === 'manual') {
       const fetchFavs = async () => {
         setIsLoadingFavs(true);
         try {
@@ -93,7 +131,7 @@ export default function AddMealModal() {
       };
       fetchFavs();
     }
-  }, [isOpen, activeTab, favorites.length]);
+  }, [isOpen, activeTab]);
 
   // Close on Escape
   useEffect(() => {
@@ -153,23 +191,22 @@ export default function AddMealModal() {
       const result = await analyzeFood({
         text: textInput.trim() || undefined,
         image: imageParam,
+        lang: language,
       });
 
       setReviewData(result);
       setStep('review');
-    } catch (err: any) {
-      setError(err.message || 'Ошибка анализа. Попробуйте еще раз.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка анализа. Попробуйте еще раз.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   // Helper to add meal to Zustand store
-  const addMealToStore = (savedDbMeal: any, finalImageUrl: string | null, isAI: boolean) => {
-    const now = new Date();
-    const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    const tzOffset = now.getTimezoneOffset() * 60000;
-    const dateString = new Date(now.getTime() - tzOffset).toISOString().split('T')[0];
+  const addMealToStore = (savedDbMeal: { id: string; name: string; calories: number; protein: number; fats: number; carbs: number; created_at?: string; createdAt?: string; emoji?: string | null; image_url?: string | null; is_ai?: boolean }, finalImageUrl: string | null, isAI: boolean) => {
+    const d = new Date(savedDbMeal.created_at || savedDbMeal.createdAt || new Date());
+    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
     const newMeal: ClientMeal = {
       id: savedDbMeal.id,
@@ -180,7 +217,7 @@ export default function AddMealModal() {
       carbs: savedDbMeal.carbs,
       emoji: savedDbMeal.emoji || '🍽️',
       time,
-      dateString,
+      dateString: targetDateString,
       imageUrl: finalImageUrl,
       isAI,
     };
@@ -207,6 +244,11 @@ export default function AddMealModal() {
         finalImageUrl = await uploadMealImage(base64, 'image/jpeg');
       }
 
+      const now = new Date();
+      const [year, month, day] = targetDateString.split('-').map(Number);
+      const targetDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+      const created_at = targetDate.toISOString();
+
       const savedDbMeal = await saveMeal({
         name: reviewData.name,
         calories: reviewData.calories,
@@ -216,13 +258,14 @@ export default function AddMealModal() {
         emoji: reviewData.emoji,
         image_url: finalImageUrl,
         is_ai: true,
+        created_at,
       });
 
       addMealToStore(savedDbMeal, finalImageUrl, true);
       router.refresh();
       close();
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при сохранении блюда. Попробуйте еще раз.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка при сохранении блюда. Попробуйте еще раз.');
     } finally {
       setIsSaving(false);
     }
@@ -250,11 +293,42 @@ export default function AddMealModal() {
       setIsSaving(true);
       setError(null);
 
+      if (mealToEdit) {
+        // Логика обновления
+        await updateMeal(mealToEdit.id, {
+          name: manualData.name,
+          calories: manualData.calories,
+          protein: manualData.protein,
+          fats: manualData.fats,
+          carbs: manualData.carbs,
+          emoji: manualData.emoji,
+        });
+        
+        // Временно обновляем стор тут, в Шаге 3 сделаем красивее, если нужно
+        updateMealInStore(mealToEdit.id, {
+          name: manualData.name,
+          calories: manualData.calories,
+          protein: manualData.protein,
+          fats: manualData.fats,
+          carbs: manualData.carbs,
+          emoji: manualData.emoji,
+        });
+        
+        router.refresh();
+        close();
+        return;
+      }
+
       let finalImageUrl = manualImagePreview && manualImagePreview.startsWith('http') ? manualImagePreview : null;
       if (manualImageFile) {
         const base64 = await compressImage(manualImageFile);
         finalImageUrl = await uploadMealImage(base64, 'image/jpeg');
       }
+
+      const now = new Date();
+      const [year, month, day] = targetDateString.split('-').map(Number);
+      const targetDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+      const created_at = targetDate.toISOString();
 
       const { meal, favoriteMeal } = await saveManualMeal({
         name: manualData.name,
@@ -264,6 +338,7 @@ export default function AddMealModal() {
         carbs: manualData.carbs,
         emoji: manualData.emoji,
         image_url: finalImageUrl,
+        created_at,
       }, saveAsFavorite);
 
       if (favoriteMeal) {
@@ -273,8 +348,8 @@ export default function AddMealModal() {
       addMealToStore(meal, finalImageUrl, false);
       router.refresh();
       close();
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при сохранении блюда.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка при сохранении блюда.');
     } finally {
       setIsSaving(false);
     }
@@ -305,9 +380,9 @@ export default function AddMealModal() {
     try {
       await deleteFavoriteMeal(id);
       setFavorites(prev => prev.filter(f => f.id !== id));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to delete favorite', err);
-      setError(err.message || 'Ошибка при удалении шаблона.');
+      setError(err instanceof Error ? err.message : 'Ошибка при удалении шаблона.');
     }
   };
 
@@ -320,7 +395,9 @@ export default function AddMealModal() {
       <div className="w-full max-w-md bg-white rounded-t-3xl p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 shrink-0">
-          <h2 className="text-lg font-bold text-[#3D4A3C]">Добавить приём пищи</h2>
+          <h2 className="text-lg font-bold text-[#3D4A3C]">
+            {mealToEdit ? t('edit_meal_title') : t('add_meal_title')}
+          </h2>
           <button
             onClick={close}
             className="p-1.5 rounded-full text-[#3D4A3C]/40 hover:text-[#3D4A3C] hover:bg-[#3D4A3C]/5 transition-colors"
@@ -330,24 +407,33 @@ export default function AddMealModal() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 shrink-0 bg-[#FAF6F1] p-1 rounded-2xl">
-          <button
-            onClick={() => setActiveTab('ai')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
-              activeTab === 'ai' ? 'bg-white shadow-sm text-[#6B9E6A]' : 'text-[#3D4A3C]/50 hover:text-[#3D4A3C]'
-            }`}
-          >
-            ИИ Анализ
-          </button>
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
-              activeTab === 'manual' ? 'bg-white shadow-sm text-[#6B9E6A]' : 'text-[#3D4A3C]/50 hover:text-[#3D4A3C]'
-            }`}
-          >
-            Вручную
-          </button>
-        </div>
+        {!mealToEdit && (
+          <div className="flex gap-2 mb-6 shrink-0 bg-[#FAF6F1] p-1 rounded-2xl">
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
+                activeTab === 'ai' ? 'bg-white shadow-sm text-[#6B9E6A]' : 'text-[#3D4A3C]/50 hover:text-[#3D4A3C]'
+              }`}
+            >
+              {t('ai_analysis')}
+            </button>
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
+                activeTab === 'manual' ? 'bg-white shadow-sm text-[#6B9E6A]' : 'text-[#3D4A3C]/50 hover:text-[#3D4A3C]'
+              }`}
+            >
+              {t('manual')}
+            </button>
+          </div>
+        )}
+
+        {isNotToday && (
+          <div className="mb-4 shrink-0 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center gap-2.5 shadow-xs animate-in fade-in">
+            <span className="text-base">⚠️</span>
+            <span>{t('warning_different_day').replace('{date}', formattedTargetDate)}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 shrink-0 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
@@ -363,13 +449,13 @@ export default function AddMealModal() {
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-[#3D4A3C]/50 mb-1.5 uppercase tracking-wide">
-                      Опишите блюдо
+                      {t('describe_dish')}
                     </label>
                     <textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       disabled={isAnalyzing}
-                      placeholder="Например: «Большой чизбургер с картошкой фри»"
+                      placeholder={t('describe_placeholder')}
                       rows={3}
                       className="w-full rounded-2xl border border-[#3D4A3C]/10 bg-[#FAF6F1] px-4 py-3 text-sm text-[#3D4A3C] placeholder:text-[#3D4A3C]/30 focus:outline-none focus:ring-2 focus:ring-[#6B9E6A]/40 resize-none transition-all disabled:opacity-60"
                     />
@@ -377,7 +463,7 @@ export default function AddMealModal() {
 
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-[#3D4A3C]/10" />
-                    <span className="text-[11px] font-medium text-[#3D4A3C]/30 uppercase">или</span>
+                    <span className="text-[11px] font-medium text-[#3D4A3C]/30 uppercase">{t('or')}</span>
                     <div className="flex-1 h-px bg-[#3D4A3C]/10" />
                   </div>
 
@@ -408,7 +494,7 @@ export default function AddMealModal() {
                       className="w-full flex items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-[#6B9E6A]/30 bg-[#6B9E6A]/5 px-4 py-4 text-sm font-semibold text-[#6B9E6A] hover:bg-[#6B9E6A]/10 transition-all disabled:opacity-60"
                     >
                       <Camera className="w-5 h-5" />
-                      Сделать фото или выбрать из галереи
+                      {t('take_photo_or_gallery')}
                     </button>
                   )}
 
@@ -418,9 +504,9 @@ export default function AddMealModal() {
                     className="w-full flex items-center justify-center gap-2 mt-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all disabled:opacity-60"
                   >
                     {isAnalyzing ? (
-                      <><Loader2 className="w-4.5 h-4.5 animate-spin" />ИИ анализирует...</>
+                      <><Loader2 className="w-4.5 h-4.5 animate-spin" />{t('ai_analyzing')}</>
                     ) : (
-                      <><Sparkles className="w-4.5 h-4.5" />Анализировать с ИИ</>
+                      <><Sparkles className="w-4.5 h-4.5" />{t('analyze_with_ai')}</>
                     )}
                   </button>
                 </>
@@ -436,7 +522,7 @@ export default function AddMealModal() {
                   
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Название блюда</label>
+                      <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('dish_name')}</label>
                       <input
                         type="text"
                         value={reviewData.name}
@@ -456,7 +542,7 @@ export default function AddMealModal() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Калории (Ккал)</label>
+                    <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('calories_kcal')}</label>
                     <input
                       type="number"
                       min="1"
@@ -468,7 +554,7 @@ export default function AddMealModal() {
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">Белки (г)</label>
+                      <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">{t('protein_g')}</label>
                       <input
                         type="number"
                         min="0"
@@ -478,7 +564,7 @@ export default function AddMealModal() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">Жиры (г)</label>
+                      <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">{t('fats_g')}</label>
                       <input
                         type="number"
                         min="0"
@@ -488,7 +574,7 @@ export default function AddMealModal() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">Углеводы (г)</label>
+                      <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">{t('carbs_g')}</label>
                       <input
                         type="number"
                         min="0"
@@ -505,15 +591,15 @@ export default function AddMealModal() {
                       disabled={isSaving}
                       className="flex-1 rounded-2xl border-2 border-[#3D4A3C]/10 bg-white px-4 py-3.5 text-sm font-bold text-[#3D4A3C] hover:bg-[#FAF6F1] transition-all disabled:opacity-60"
                     >
-                      Назад
+                      {t('back')}
                     </button>
                     <button
                       onClick={handleAISave}
                       disabled={isSaving}
-                      className="flex-[2] flex items-center justify-center gap-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all disabled:opacity-60"
+                      className="flex-2 flex items-center justify-center gap-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all disabled:opacity-60"
                     >
                       {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                      Сохранить
+                      {t('save')}
                     </button>
                   </div>
                 </div>
@@ -529,15 +615,15 @@ export default function AddMealModal() {
               <div>
                 <h3 className="text-xs font-semibold text-[#3D4A3C]/50 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Heart className="w-3.5 h-3.5" />
-                  Избранное
+                  {t('favorites_title')}
                 </h3>
                 {isLoadingFavs ? (
                   <div className="h-16 flex items-center justify-center text-[#3D4A3C]/40 text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Загрузка...
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> {t('loading')}
                   </div>
                 ) : favorites.length === 0 ? (
                   <div className="h-16 flex items-center justify-center text-[#3D4A3C]/40 text-sm bg-[#FAF6F1] rounded-2xl border border-[#3D4A3C]/5">
-                    Нет сохраненных шаблонов
+                    {t('no_saved_templates')}
                   </div>
                 ) : favorites.length <= MAX_VISIBLE_FAVORITES ? (
                   /* Condition 1: Horizontal list */
@@ -551,7 +637,7 @@ export default function AddMealModal() {
                         <span className="text-xl">{fav.emoji || '🍽️'}</span>
                         <div className="text-left flex flex-col">
                           <span className="text-xs font-bold text-[#3D4A3C] truncate max-w-[100px]">{fav.name}</span>
-                          <span className="text-[10px] text-[#3D4A3C]/50 font-medium">{fav.calories} ккал</span>
+                          <span className="text-[10px] text-[#3D4A3C]/50 font-medium">{fav.calories} {t('kcal').toLowerCase()}</span>
                         </div>
                         <button
                           onClick={(e) => handleDeleteFavorite(fav.id, e)}
@@ -573,14 +659,14 @@ export default function AddMealModal() {
                       <div className="p-2 bg-white rounded-xl shadow-xs text-[#F0C246] group-hover:scale-105 transition-transform">
                         <Bookmark className="w-4.5 h-4.5 fill-current" />
                       </div>
-                      <span className="text-sm font-bold text-[#3D4A3C]">Избранные шаблоны</span>
+                      <span className="text-sm font-bold text-[#3D4A3C]">{t('favorite_templates')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-0.5 bg-[#6B9E6A] text-white text-xs font-bold rounded-full shadow-xs">
                         {favorites.length}
                       </span>
                       <span className="text-xs font-semibold text-[#3D4A3C]/40 group-hover:text-[#3D4A3C]/60 transition-colors">
-                        Открыть список →
+                        {t('open_list')}
                       </span>
                     </div>
                   </button>
@@ -592,7 +678,7 @@ export default function AddMealModal() {
               {/* Form */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Название блюда</label>
+                  <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('dish_name')}</label>
                   <input
                     type="text"
                     value={manualData.name}
@@ -613,7 +699,7 @@ export default function AddMealModal() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Калории (Ккал)</label>
+                <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('calories_kcal')}</label>
                 <input
                   type="number"
                   min="1"
@@ -626,7 +712,7 @@ export default function AddMealModal() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">Белки (г)</label>
+                  <label className="block text-[10px] font-bold text-[#E85D5D] uppercase mb-1">{t('protein_g')}</label>
                   <input
                     type="number"
                     min="0"
@@ -636,7 +722,7 @@ export default function AddMealModal() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">Жиры (г)</label>
+                  <label className="block text-[10px] font-bold text-[#F0C246] uppercase mb-1">{t('fats_g')}</label>
                   <input
                     type="number"
                     min="0"
@@ -646,7 +732,7 @@ export default function AddMealModal() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">Углеводы (г)</label>
+                  <label className="block text-[10px] font-bold text-[#C4A46C] uppercase mb-1">{t('carbs_g')}</label>
                   <input
                     type="number"
                     min="0"
@@ -658,38 +744,40 @@ export default function AddMealModal() {
               </div>
 
               {/* Optional Image Upload */}
-              <div>
-                <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">Фото блюда (необязательно)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  ref={manualFileInputRef}
-                  onChange={handleManualFileChange}
-                  disabled={isSaving}
-                />
-                {manualImagePreview ? (
-                  <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-[#3D4A3C]/10">
-                    <img src={manualImagePreview} alt="Manual Preview" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => { setManualImageFile(null); setManualImagePreview(null); }}
-                      disabled={isSaving}
-                      className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => manualFileInputRef.current?.click()}
+              {!mealToEdit && (
+                <div>
+                  <label className="block text-[10px] font-bold text-[#3D4A3C]/50 uppercase mb-1">{t('photo_optional')}</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={manualFileInputRef}
+                    onChange={handleManualFileChange}
                     disabled={isSaving}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#3D4A3C]/20 bg-[#FAF6F1] px-3 py-3 text-xs font-semibold text-[#3D4A3C]/60 hover:bg-[#F5EFE6] hover:border-[#6B9E6A]/40 transition-all disabled:opacity-60"
-                  >
-                    <Camera className="w-4 h-4 text-[#6B9E6A]" />
-                    Добавить фото
-                  </button>
-                )}
-              </div>
+                  />
+                  {manualImagePreview ? (
+                    <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-[#3D4A3C]/10">
+                      <img src={manualImagePreview} alt="Manual Preview" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => { setManualImageFile(null); setManualImagePreview(null); }}
+                        disabled={isSaving}
+                        className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => manualFileInputRef.current?.click()}
+                      disabled={isSaving}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#3D4A3C]/20 bg-[#FAF6F1] px-3 py-3 text-xs font-semibold text-[#3D4A3C]/60 hover:bg-[#F5EFE6] hover:border-[#6B9E6A]/40 transition-all disabled:opacity-60"
+                    >
+                      <Camera className="w-4 h-4 text-[#6B9E6A]" />
+                      {t('add_photo')}
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-2 mt-2">
                 <button
@@ -709,7 +797,7 @@ export default function AddMealModal() {
                   className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-[#6B9E6A] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#6B9E6A]/30 hover:bg-[#5E8E5E] active:scale-[0.97] transition-all disabled:opacity-60"
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                  Добавить
+                  {mealToEdit ? t('update') : t('add_meal')}
                 </button>
               </div>
             </div>
@@ -721,7 +809,7 @@ export default function AddMealModal() {
       {isDropdownOpen && (
         <div
           onClick={() => setIsDropdownOpen(false)}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-xs animate-in fade-in duration-200 p-4"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/30 backdrop-blur-xs animate-in fade-in duration-200 p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -730,7 +818,7 @@ export default function AddMealModal() {
             <div className="flex items-center justify-between mb-4 shrink-0">
               <div className="flex items-center gap-2">
                 <Bookmark className="w-5 h-5 text-[#F0C246] fill-current" />
-                <h3 className="text-base font-bold text-[#3D4A3C]">Библиотека избранного</h3>
+                <h3 className="text-base font-bold text-[#3D4A3C]">{t('favorites_library')}</h3>
               </div>
               <button
                 onClick={() => setIsDropdownOpen(false)}
@@ -751,11 +839,15 @@ export default function AddMealModal() {
                   className="flex items-center justify-between bg-[#FAF6F1] border border-[#3D4A3C]/5 p-3 rounded-2xl hover:border-[#6B9E6A]/40 hover:bg-[#F5EFE6] cursor-pointer transition-all group"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <span className="text-2xl shrink-0">{fav.emoji || '🍽️'}</span>
+                    {fav.image_url ? (
+                      <img src={fav.image_url} alt={fav.name} className="w-11 h-11 rounded-xl object-cover shrink-0 border border-[#3D4A3C]/10 shadow-2xs" />
+                    ) : (
+                      <span className="text-2xl shrink-0 w-11 h-11 flex items-center justify-center bg-white rounded-xl border border-[#3D4A3C]/5 shadow-2xs">{fav.emoji || '🍽️'}</span>
+                    )}
                     <div className="text-left flex flex-col overflow-hidden">
                       <span className="text-sm font-bold text-[#3D4A3C] truncate">{fav.name}</span>
                       <span className="text-xs text-[#3D4A3C]/50 font-medium truncate">
-                        {fav.calories} ккал • Белки: {fav.protein}г • Жиры: {fav.fats}г • Угл: {fav.carbs}г
+                        {fav.calories} {t('kcal').toLowerCase()} • {t('protein')}: {fav.protein}г • {t('fats')}: {fav.fats}г • {t('carbs')}: {fav.carbs}г
                       </span>
                     </div>
                   </div>
