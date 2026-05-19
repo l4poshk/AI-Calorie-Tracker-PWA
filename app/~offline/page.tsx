@@ -1,4 +1,5 @@
 import { WifiOff, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
 
 export default function OfflinePage() {
   return (
@@ -17,13 +18,13 @@ export default function OfflinePage() {
       </p>
 
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xs justify-center">
-        <a
+        <Link
           href="/"
           className="flex items-center justify-center gap-2 rounded-full bg-[#5C6B4F] px-6 py-3 text-sm font-medium text-[#FAF6F1] shadow-sm transition-colors hover:bg-[#4a563f] active:scale-95"
         >
           <RotateCcw className="h-4 w-4" />
           Try Reloading
-        </a>
+        </Link>
       </div>
     </main>
   );
