@@ -303,26 +303,52 @@ export async function deleteMeal(mealId: string): Promise<boolean> {
     throw new Error(`Ошибка поиска блюда: ${fetchError.message}`);
   }
 
-  // Если есть image_url, удаляем файл из Storage перед удалением из БД
+  // Если есть image_url, проверяем ссылки перед удалением из Storage
   if (meal?.image_url) {
     try {
-      // Отрезаем домен и имя бакета, чтобы получить относительный путь внутри бакета
-      const parts = meal.image_url.split('/object/public/food-photos/');
-      const parsedPath = parts.length > 1 ? parts[1] : null;
+      // 1. Проверяем, использует ли кто-то еще эту картинку в дневнике (кроме удаляемой записи)
+      const { count: mealsCount, error: mealsErr } = await supabase
+        .from('meals')
+        .select('*', { count: 'exact', head: true })
+        .eq('image_url', meal.image_url)
+        .neq('id', mealId);
 
-      if (!parsedPath) {
-        console.warn('Внимание: не удалось извлечь путь к файлу из image_url');
-      } else {
-        const { error: storageError } = await supabase.storage
-          .from('food-photos')
-          .remove([parsedPath]);
-          
-        if (storageError) {
-          console.warn('Внимание: не удалось удалить файл из Storage (возможно уже удален роботом):', storageError.message);
+      if (mealsErr) throw mealsErr;
+
+      // 2. Проверяем, есть ли эта картинка в избранном
+      const { count: favsCount, error: favsErr } = await supabase
+        .from('favorite_meals')
+        .select('*', { count: 'exact', head: true })
+        .eq('image_url', meal.image_url);
+
+      if (favsErr) throw favsErr;
+
+      const totalUses = (mealsCount || 0) + (favsCount || 0);
+
+      // 3. Если ссылок больше нет, сносим файл из Storage
+      if (totalUses === 0) {
+        // Отрезаем домен и имя бакета, чтобы получить относительный путь внутри бакета
+        const parts = meal.image_url.split('/object/public/food-photos/');
+        const parsedPath = parts.length > 1 ? parts[1] : null;
+
+        if (!parsedPath) {
+          console.warn('Внимание: не удалось извлечь путь к файлу из image_url');
+        } else {
+          const { error: storageError } = await supabase.storage
+            .from('food-photos')
+            .remove([parsedPath]);
+            
+          if (storageError) {
+            console.warn('Внимание: не удалось удалить файл из Storage:', storageError.message);
+          } else {
+            console.log('Очистили неиспользуемую фотку:', parsedPath);
+          }
         }
+      } else {
+        console.log(`Файл защищен от удаления. Найдено ссылок: ${totalUses}`);
       }
     } catch (err: unknown) {
-      console.warn('Внимание: непредвиденная ошибка при удалении картинки из Storage:', err instanceof Error ? err.message : String(err));
+      console.warn('Внимание: ошибка при проверке ссылок или удалении картинки из Storage:', err instanceof Error ? err.message : String(err));
     }
   }
 
