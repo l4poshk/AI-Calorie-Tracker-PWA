@@ -28,3 +28,25 @@ Designed with an absolute focus on database optimization and cloud storage effic
    ```bash
    git clone [https://github.com/your-username/ai-calorie-tracker-pwa.git](https://github.com/your-username/ai-calorie-tracker-pwa.git)
    cd ai-calorie-tracker-pwa
+Install dependencies:
+
+Bash
+npm install
+Set up Environment Variables:
+Create a .env.local file in the root directory and add your keys:
+
+Фрагмент кода
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+GEMINI_API_KEY=your_gemini_api_key
+CRON_SECRET=your_custom_cron_secret
+Run the development server:
+
+Bash
+npm run dev
+Open http://localhost:3000 to view it in the browser.
+
+🧠 Architecture Highlights
+The Garbage Collector Logic
+To prevent AWS S3 (Supabase Storage) from filling up with old meal photos, a Vercel Cron Job pings the /api/cron/purge-photos route every midnight. The server bypasses RLS using the Service Role Key, calls a custom PostgreSQL function get_old_food_photos, and filters out any images currently linked to the favorite_meals table. Only unprotected files older than 30 days are permanently deleted via the Supabase Storage API.
