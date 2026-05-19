@@ -93,6 +93,39 @@ export default function DashboardClient({ userEmail, rawMeals }: DashboardClient
     return `${t('meals_for')} ${d.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}`;
   };
 
+  if (!mounted) {
+    return (
+      <div className="relative min-h-dvh bg-[#FAF6F1] pb-40 animate-pulse">
+        {/* Greeting placeholder */}
+        <div className="px-5 pt-4 pb-1">
+          <div className="h-4 w-20 bg-[#3D4A3C]/10 rounded mb-2"></div>
+          <div className="h-6 w-32 bg-[#3D4A3C]/15 rounded"></div>
+        </div>
+
+        {/* Week day selector placeholder */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <div className="flex gap-2 flex-1">
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="w-10 h-14 bg-[#3D4A3C]/10 rounded-2xl"></div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card placeholder */}
+        <div className="mx-4 mt-2 h-44 bg-[#6B9E6A]/30 rounded-3xl"></div>
+
+        {/* Meals title placeholder */}
+        <div className="mt-6 px-4">
+          <div className="h-5 w-40 bg-[#3D4A3C]/15 rounded mb-3"></div>
+          <div className="flex flex-col gap-3">
+            <div className="h-20 bg-white rounded-2xl shadow-sm"></div>
+            <div className="h-20 bg-white rounded-2xl shadow-sm"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-dvh bg-[#FAF6F1] pb-40">
       {/* Greeting */}

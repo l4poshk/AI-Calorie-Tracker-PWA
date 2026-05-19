@@ -20,6 +20,11 @@ interface HistoryClientProps {
 export default function HistoryClient({ userEmail }: HistoryClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const { t, language } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0);
+  }, []);
   
   // Получаем локальную дату в формате YYYY-MM-DD безопасно, учитывая timezone
   const getLocalDateString = (d: Date) => {
@@ -154,6 +159,39 @@ export default function HistoryClient({ userEmail }: HistoryClientProps) {
 
     return days;
   };
+
+  if (!mounted) {
+    return (
+      <div className="relative min-h-dvh bg-[#FAF6F1] pb-40 animate-pulse">
+        {/* Header placeholder */}
+        <div className="px-5 pt-8 pb-4">
+          <div className="h-6 w-32 bg-[#3D4A3C]/15 rounded mb-2"></div>
+          <div className="h-4 w-48 bg-[#3D4A3C]/10 rounded"></div>
+        </div>
+
+        {/* Month selector placeholder */}
+        <div className="flex items-center justify-between px-5 py-3">
+          <div className="w-8 h-8 bg-[#3D4A3C]/10 rounded-full"></div>
+          <div className="w-32 h-6 bg-[#3D4A3C]/15 rounded"></div>
+          <div className="w-8 h-8 bg-[#3D4A3C]/10 rounded-full"></div>
+        </div>
+
+        {/* Calendar grid placeholder */}
+        <div className="mx-4 bg-white rounded-3xl p-4 shadow-sm">
+          <div className="grid grid-cols-7 gap-2 mb-3">
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="h-4 bg-[#3D4A3C]/10 rounded animate-pulse"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <div key={i} className="h-12 bg-[#3D4A3C]/5 rounded-xl animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-dvh bg-[#FAF6F1] pb-40">
